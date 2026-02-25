@@ -87,11 +87,11 @@ class LangModule(nn.Module):
         word_embs = self.word_drop(word_embs)
         lang_feat = pack_padded_sequence(word_embs, data_dict["lang_len"].cpu(), batch_first=True, enforce_sorted=False)
 
-        # 先变为
+        # lang_out (B,LEN,H)
         packed_output, (lang_last, _) = self.lstm(lang_feat)
         lang_output, _ = pad_packed_sequence(packed_output, batch_first=True)
         data_dict["lang_out"] = lang_output # batch_size, num_words(max_question_length), hidden_size * num_dir
-
+        # (B, H * num_directions) 每一个样本一个向量
         # lang_last: (num_layers * num_directions, batch_size, hidden_size)
         _, batch_size, hidden_size = lang_last.size()
         lang_last = lang_last.view(self.num_layers, -1, batch_size, hidden_size) 

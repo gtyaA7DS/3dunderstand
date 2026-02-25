@@ -39,14 +39,14 @@ class VotingModule(nn.Module):
         Returns:
             vote_xyz: (batch_size, num_seed*vote_factor, 3)
             vote_features: (batch_size, vote_feature_dim, num_seed*vote_factor)
-        """
+        """ # vote_factor 是每个 seed 点生成的候选中心点个数
         batch_size = seed_xyz.shape[0]
         num_seed = seed_xyz.shape[1]
         num_vote = num_seed*self.vote_factor
         net = F.relu(self.bn1(self.conv1(seed_features))) 
         net = F.relu(self.bn2(self.conv2(net))) 
-        net = self.conv3(net) # (batch_size, (3+out_dim)*vote_factor, num_seed)
-                
+        net = self.conv3(net) # (batch_size, (3+out_dim)*vote_factor, num_seed) 3是每个 vote 的 xyz 偏移量
+      # offset 偏移 和 residual_features 残差，从seed_features 生成
         net = net.transpose(2,1).view(batch_size, num_seed, self.vote_factor, 3+self.out_dim).contiguous()
         offset = net[:,:,:,0:3]
         vote_xyz = seed_xyz.unsqueeze(2) + offset

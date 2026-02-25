@@ -64,8 +64,8 @@ class ProposalModule(nn.Module):
             scores: (B,num_proposal,2+3+NH*2+NS*4) 
         """
 
-        # Farthest point sampling (FPS) on votes
-        # feturea: batch, 256, 1024
+        #对投票点再做一次采样+聚合
+        # feturea: batch, 256, 1024   
         xyz, features, fps_inds = self.vote_aggregation(xyz, features) #  batch, votenet_mlp_size (128), 256
         
         sample_inds = fps_inds
@@ -105,10 +105,10 @@ class ProposalModule(nn.Module):
 
     def decode_scores(self, net, data_dict, num_class, num_heading_bin, num_size_cluster, mean_size_arr):
         """
-        decode the predicted parameters for the bounding boxes
+        # 拆出来
 
         """
-        #net_transposed = net.transpose(2,1).contiguous() # (batch_size, 1024, ..)
+        #  num_proposal 每个场景生成的候选框数量，候选框有两个是预测背景还是物体的分数
         net_transposed = net.transpose(2,1).contiguous() # (batch_size, num_proposal, ..)
         batch_size = net_transposed.shape[0]
         num_proposal = net_transposed.shape[1]
@@ -133,7 +133,7 @@ class ProposalModule(nn.Module):
         data_dict['heading_residuals_normalized'] = heading_residuals_normalized # B x num_proposal x num_heading_bin (should be -1 to 1)
         data_dict['heading_residuals'] = heading_residuals_normalized * (np.pi/num_heading_bin) # B x num_proposal x num_heading_bin
         data_dict['size_scores'] = size_scores
-        data_dict['size_residuals_normalized'] = size_residuals_normalized
+        data_dict['size_residuals_normalized'] = size_residuals_normalized # 网络输出的是残差比例，乘以真实尺寸才是残差
         data_dict['size_residuals'] = size_residuals_normalized * torch.from_numpy(mean_size_arr.astype(np.float32)).cuda().unsqueeze(0).unsqueeze(0)
         data_dict['sem_cls_scores'] = sem_cls_scores # B x num_proposal x 10
 

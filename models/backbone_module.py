@@ -66,8 +66,8 @@ class Pointnet2Backbone(nn.Module):
             )
 
         # --------- 2 FEATURE UPSAMPLING LAYERS --------
-        #self.fp1 = PointnetFPModule(mlp=[256+256,256,256])
-        #self.fp2 = PointnetFPModule(mlp=[256+256,256,256])
+        #
+        #
         self.fp1 = PointnetFPModule(mlp=[256 * width + 256 * width, 256 * width, 256 * width])
         self.fp2 = PointnetFPModule(mlp=[256 * width + 256 * width, 256 * width, seed_feat_dim])
 
@@ -101,26 +101,26 @@ class Pointnet2Backbone(nn.Module):
         batch_size = pointcloud.shape[0]
         # features: batch, 1, num_points (16, 1, 40000)
         xyz, features = self._break_up_pc(pointcloud)
-
+        # 下采样，点数量变少,特征维度增加 xyz 16,2048,3  features 16,128,2048  FPS 采样得到的点索引，形状 (B, npoint)（指向原始点云的索引）   fps_inds 16,2048
         # --------- 4 SET ABSTRACTION LAYERS ---------
         xyz, features, fps_inds = self.sa1(xyz, features)
         data_dict['sa1_inds'] = fps_inds
         data_dict['sa1_xyz'] = xyz
         data_dict['sa1_features'] = features
 
-        xyz, features, fps_inds = self.sa2(xyz, features) # this fps_inds is just 0,1,...,1023
+        xyz, features, fps_inds = self.sa2(xyz, features) 
         data_dict['sa2_inds'] = fps_inds
         data_dict['sa2_xyz'] = xyz
         data_dict['sa2_features'] = features
 
-        xyz, features, fps_inds = self.sa3(xyz, features) # this fps_inds is just 0,1,...,511
+        xyz, features, fps_inds = self.sa3(xyz, features) 
         data_dict['sa3_xyz'] = xyz
         data_dict['sa3_features'] = features
 
-        xyz, features, fps_inds = self.sa4(xyz, features) # this fps_inds is just 0,1,...,255
+        xyz, features, fps_inds = self.sa4(xyz, features) 
         data_dict['sa4_xyz'] = xyz
         data_dict['sa4_features'] = features
-
+        # 16, 256, 256 -> 16, 256, 512 -> 16, 256, 1024 上采样，融合不同层
         # --------- 2 FEATURE UPSAMPLING LAYERS --------
         features = self.fp1(data_dict['sa3_xyz'], data_dict['sa4_xyz'], data_dict['sa3_features'], data_dict['sa4_features'])
         features = self.fp2(data_dict['sa2_xyz'], data_dict['sa3_xyz'], data_dict['sa2_features'], features)

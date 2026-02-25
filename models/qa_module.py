@@ -133,7 +133,7 @@ class ScanQA(nn.Module):
         features = data_dict["fp2_features"] # batch_size, seed_feature_dim, num_seed, (16, 256, 1024)
         data_dict["seed_inds"] = data_dict["fp2_inds"]
         data_dict["seed_xyz"] = xyz
-
+      # 每个种子对目标中心的预测，为当前坐标和提取的特征加上残差
         data_dict["seed_features"] = features
         xyz, features = self.voting_net(xyz, features) # batch_size, vote_feature_dim, num_seed * vote_factor, (16, 256, 1024)
         features_norm = torch.norm(features, p=2, dim=1)
