@@ -1,0 +1,1 @@
+Python 3.8, pytorch 1.11.0, and CUDA 11.3 on Ubuntu 22.04.

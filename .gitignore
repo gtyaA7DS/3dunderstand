@@ -1,0 +1,48 @@
+# dataset
+data/glove.p
+data/qa
+data/scannetv2_enet.pt
+data/enet_features
+data/frames_square
+data/scannet/scannet_data
+data/scannet/scans
+data/scannetv2_enet.pth
+
+
+amturk/
+
+
+scripts/visualize.py
+
+
+/notebook/
+
+
+/weights/
+
+# vscode
+*.code-workspace
+
+
+data/scannet/__pycache__
+lib/__pycache__
+lib/pointnet2/__pycache__
+models/__pycache__
+utils/__pycache__
+.DS_Store
+._.DS_Store
+._README.md
+._*
+
+# pointnet2
+lib/pointnet2/build/
+lib/pointnet2/dist/
+lib/pointnet2/pointnet2.egg-info/
+
+# output
+outputs/
+
+# log
+log/
+wandb/
+
