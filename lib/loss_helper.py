@@ -277,7 +277,7 @@ def get_loss(data_dict, config, detection=True, use_reference=True, use_lang_cla
     Returns:
         loss: pytorch scalar tensor
         data_dict: dict
-    """
+    """ # 计算loss
     if loss_weights is None:
         loss_weights = {}
 

@@ -115,7 +115,7 @@ class ScanQA(nn.Module):
         #           LANGUAGE BRANCH           #
         #                                     #
         #######################################
-
+        # 经过一个lsmt
         # --------- LANGUAGE ENCODING ---------
         data_dict = self.lang_net(data_dict)        
 
@@ -140,7 +140,7 @@ class ScanQA(nn.Module):
         features = features.div(features_norm.unsqueeze(1))
         data_dict["vote_xyz"] = xyz
         data_dict["vote_features"] = features
-
+        #预测出框 16，256，8
         # --------- PROPOSAL GENERATION ---------
         data_dict = self.proposal_net(xyz, features, data_dict)
 
@@ -150,13 +150,13 @@ class ScanQA(nn.Module):
         #                                     #
         #######################################
 
-        # unpack outputs from question encoding branch
+        # 经过一个lstm
         lang_feat = data_dict["lang_out"] # word embeddings after LSTM (batch_size, num_words(max_question_length), hidden_size * num_dir)
         lang_mask = data_dict["lang_mask"] # word attetion (batch, num_words)
         
-        # unpack outputs from detection branch
+        # 经过 vote_net 投票 + proposal 聚合 之后的特征
         object_feat = data_dict['aggregated_vote_features'] # batch_size, num_proposal, proposal_size (128)
-        if self.use_object_mask:
+        if self.use_object_mask: # 1 物体，0 背景，取反是屏蔽背景
             object_mask = ~data_dict["bbox_mask"].bool().detach() #  # batch, num_proposals
         else:
             object_mask = None            
@@ -170,8 +170,8 @@ class ScanQA(nn.Module):
         # Pre-process Lanauge & Image Feature
         lang_feat = self.lang_feat_linear(lang_feat) # batch_size, num_words, hidden_size
         object_feat = self.object_feat_linear(object_feat) # batch_size, num_proposal, hidden_size
-
-        # QA Backbone (Fusion network)
+        # 融合语言特征和提取的点云特征，编解码器模块   lang_feat 16，13，256  lang_mask 16，1，1，13 注意力机制要求
+        # QA Backbone (Fusion network) object_feat 是融合后的，两者输出维度不变    object_feat 16,256,256
         lang_feat, object_feat = self.fusion_backbone(
             lang_feat,
             object_feat,
@@ -187,30 +187,27 @@ class ScanQA(nn.Module):
         #                                     #
         #######################################
         if self.use_reference:   
-            #  data_dict["cluster_ref"]:
-            #  tensor([[-0.2910, -0.2910, -0.1096],
-            #          [0.7795, -0.2910,  1.2384]]    
-            # mask out invalid proposals
+            # mask out invalid proposals   索引0是背景，索引1 是物体  ；相乘时 (B, num_proposal, 1) 会广播到 (B, num_proposal, hidden)， mask=1 的 proposal 保留
             object_conf_feat = object_feat * data_dict['objectness_scores'].max(2)[1].float().unsqueeze(2)
-            data_dict["cluster_ref"] = self.object_cls(object_conf_feat).squeeze(-1) 
-
+            data_dict["cluster_ref"] = self.object_cls(object_conf_feat).squeeze(-1) #16，256，1；256是候选框的数量，这个候选框是不是目标”的打分。 
+#对序列做注意力池化，不是子注意力机制   16，13，256->16，512 给序列里每个位置一个权重，然后加权求和成一个向量
         lang_feat = self.attflat_lang(
                 lang_feat,
                 lang_mask
         )
-
+# 16,256,256->16,512
         object_feat = self.attflat_visual(
                 object_feat,
                 object_mask
         )
-
+    #16，512
         fuse_feat = self.fusion_norm(lang_feat + object_feat) # batch, mcan_flat_out_size
 
         #######################################
         #                                     #
         #           LANGUAGE BRANCH           #
         #                                     #
-        #######################################
+        #######################################   # 预测物体类别
         if self.use_lang_cls:
             data_dict["lang_scores"] = self.lang_cls(fuse_feat) # batch_size, num_object_classe
 
@@ -219,7 +216,7 @@ class ScanQA(nn.Module):
         #          QUESTION ANSERING          #
         #                                     #
         #######################################
-        if self.use_answer:
+        if self.use_answer:   # 预测语料库中的答案标签
             data_dict["answer_scores"] = self.answer_cls(fuse_feat) # batch_size, num_answers
 
         return data_dict

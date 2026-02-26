@@ -81,7 +81,7 @@ class ProposalModule(nn.Module):
         return data_dict
 
     def decode_pred_box(self, data_dict):
-        # predicted bbox
+        # predicted bbox  # pred_heading_class 最可能的角度类别，pred_heading_residual角度残差
         pred_center = data_dict["center"].detach().cpu().numpy() # (B,K,3)
         pred_heading_class = torch.argmax(data_dict["heading_scores"], -1) # B,num_proposal
         pred_heading_residual = torch.gather(data_dict["heading_residuals"], 2, pred_heading_class.unsqueeze(-1)) # B,num_proposal,1
@@ -100,7 +100,7 @@ class ProposalModule(nn.Module):
                         pred_size_class[i], pred_size_residual[i])
             pred_bbox_batch = get_3d_box_batch(pred_obb_batch[:, 3:6], pred_obb_batch[:, 6], pred_obb_batch[:, 0:3])
             pred_bboxes.append(torch.from_numpy(pred_bbox_batch).cuda().unsqueeze(0))
-        pred_bboxes = torch.cat(pred_bboxes, dim=0) # batch_size, num_proposals, 8, 3
+        pred_bboxes = torch.cat(pred_bboxes, dim=0) # batch_size, num_proposals, 8, 3  #变为框的8个点的坐标
         return pred_bboxes
 
     def decode_scores(self, net, data_dict, num_class, num_heading_bin, num_size_cluster, mean_size_arr):
@@ -136,12 +136,12 @@ class ProposalModule(nn.Module):
         data_dict['size_residuals_normalized'] = size_residuals_normalized # 网络输出的是残差比例，乘以真实尺寸才是残差
         data_dict['size_residuals'] = size_residuals_normalized * torch.from_numpy(mean_size_arr.astype(np.float32)).cuda().unsqueeze(0).unsqueeze(0)
         data_dict['sem_cls_scores'] = sem_cls_scores # B x num_proposal x 10
-
+        # bbox_feature 用于和语言的特征融合
         # processed box info
         data_dict["bbox_corner"] = self.decode_pred_box(data_dict) # batch_size, num_proposals, 8, 3 (bounding box corner coordinates)
         data_dict["bbox_feature"] = data_dict["aggregated_vote_features"]
-        data_dict["bbox_mask"] = objectness_scores.argmax(-1)
-        data_dict['bbox_sems'] = sem_cls_scores.argmax(-1) # # B x num_proposal
+        data_dict["bbox_mask"] = objectness_scores.argmax(-1) #  B x num_proposal，物体还是背景
+        data_dict['bbox_sems'] = sem_cls_scores.argmax(-1)  # B x num_proposal
         #data_dict['sem_cls'] = sem_cls_scores.argmax(-1)
 
         return data_dict

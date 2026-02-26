@@ -283,7 +283,7 @@ class MCAN_ED(nn.Module):
         # print()
         # print('object_mask', y_mask)
         # exit()        
-        # x_mask: 要素があるところがFalse, ないところがTrue
+        # x_mask：有元素的位置是 False，没有元素的位置是 True。
         # [[[False, False, False, False, False, False, False, False, False, False,
         #   False,  True,  True,  True]]],
         #[[[False, False, False, False, False, False, False, False,  True,  True,
