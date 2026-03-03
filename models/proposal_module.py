@@ -125,7 +125,7 @@ class ProposalModule(nn.Module):
         size_residuals_normalized = net_transposed[:,:,5+num_heading_bin*2+num_size_cluster:5+num_heading_bin*2+num_size_cluster*4].view([batch_size, num_proposal, num_size_cluster, 3]) # Bxnum_proposalxnum_size_clusterx3
         
         sem_cls_scores = net_transposed[:,:,5+num_heading_bin*2+num_size_cluster*4:] # Bxnum_proposalx10
-
+        # 框预测
         # store
         data_dict['objectness_scores'] = objectness_scores
         data_dict['center'] = center

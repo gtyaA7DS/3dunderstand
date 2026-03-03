@@ -41,31 +41,31 @@ def compute_vote_loss(data_dict):
         Then the loss for this seed point is:
             min(d(v_i,c_j)) for i=1,2,3 and j=1,2,3
     """
-
+ #计算voteloss,投票生成的中心的距离偏移
     # Load ground truth votes and assign them to seed points
     batch_size = data_dict['seed_xyz'].shape[0]
     num_seed = data_dict['seed_xyz'].shape[1] # B,num_seed,3
     vote_xyz = data_dict['vote_xyz'] # B,num_seed*vote_factor,3
     seed_inds = data_dict['seed_inds'].long() # B,num_seed in [0,num_points-1]
-
+   # data_dict['vote_label_mask'] 是否是物体  ；data_dict['vote_label'] 数据集生成的投票偏移
     # Get groundtruth votes for the seed points
     # vote_label_mask: Use gather to select B,num_seed from B,num_point
     #   non-object point has no GT vote mask = 0, object point has mask = 1
     # vote_label: Use gather to select B,num_seed,9 from B,num_point,9
-    #   with inds in shape B,num_seed,9 and 9 = GT_VOTE_FACTOR * 3
+    #   with inds in shape B,num_seed,9 and 9 = GT_VOTE_FACTOR * 3  # 取索引，16，40000 -> 16，1024
     seed_gt_votes_mask = torch.gather(data_dict['vote_label_mask'], 1, seed_inds)
     seed_inds_expand = seed_inds.view(batch_size,num_seed,1).repeat(1,1,3*GT_VOTE_FACTOR)
     seed_gt_votes = torch.gather(data_dict['vote_label'], 1, seed_inds_expand)
-    seed_gt_votes += data_dict['seed_xyz'].repeat(1,1,3)
-
+    seed_gt_votes += data_dict['seed_xyz'].repeat(1,1,3)# 加上偏移，物体中心点坐标
+  # 投票投的是 “物体中心的位置”（准确说是指向中心的偏移向量）vote_xyz_reshape 模型预测投票点，seed_gt_votes_reshape真实投票点
     # Compute the min of min of distance
     vote_xyz_reshape = vote_xyz.view(batch_size*num_seed, -1, 3) # from B,num_seed*vote_factor,3 to B*num_seed,vote_factor,3
     seed_gt_votes_reshape = seed_gt_votes.view(batch_size*num_seed, GT_VOTE_FACTOR, 3) # from B,num_seed,3*GT_VOTE_FACTOR to B*num_seed,GT_VOTE_FACTOR,3
-    # A predicted vote to no where is not penalized as long as there is a good vote near the GT vote.
+    #dist2 每个 GT 点到预测点集的最近距离
     dist1, _, dist2, _ = nn_distance(vote_xyz_reshape, seed_gt_votes_reshape, l1=True)
     votes_dist, _ = torch.min(dist2, dim=1) # (B*num_seed,vote_factor) to (B*num_seed,)
     votes_dist = votes_dist.view(batch_size, num_seed)
-    vote_loss = torch.sum(votes_dist*seed_gt_votes_mask.float())/(torch.sum(seed_gt_votes_mask.float())+1e-6)
+    vote_loss = torch.sum(votes_dist*seed_gt_votes_mask.float())/(torch.sum(seed_gt_votes_mask.float())+1e-6) # 去除掉不是物体loss
     return vote_loss
 
 def compute_objectness_loss(data_dict):
@@ -81,7 +81,7 @@ def compute_objectness_loss(data_dict):
         object_assignment: (batch_size, num_seed) Tensor with long int
             within [0,num_gt_object-1]
     """ 
-    # Associate proposal and GT objects by point-to-point distances
+    #aggregated_vote_xyz 候选框中心 gt_center 真实框中心 ；proposal 中心点就是投票点聚合后的候选框中心；vote loss：让投票点更准（局部层） 、objectness loss：让候选框更准（候选层）
     aggregated_vote_xyz = data_dict['aggregated_vote_xyz']
     gt_center = data_dict['center_label'][:,:,0:3]
     B = gt_center.shape[0]
